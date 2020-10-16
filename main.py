@@ -28,7 +28,10 @@ def get_db():
         db.close()
 
 #A rendre
-#Movie
+#--------------------------------------------------------------------
+# Partie 1 API Rest
+# Fonction create, update et delete pour Movie
+#--------------------------------------------------------------------
 @app.post("/movies/", response_model=schemas.Movie)
 def create_movie(movie: schemas.MovieCreate, db: Session = Depends(get_db)):
     # receive json movie without id and return json movie from database with new id
@@ -49,7 +52,10 @@ def delete_movie(movie_id: int, db: Session = Depends(get_db)):
     return db_movie
 
 
-#Star
+#--------------------------------------------------------------------
+# Partie 1 API Rest
+# Fonction create, update et delete pour Star
+#--------------------------------------------------------------------
 @app.post("/stars/", response_model=schemas.Star)
 def create_star(star: schemas.StarCreate, db: Session = Depends(get_db)):
     # receive json movie without id and return json movie from database with new id
@@ -70,15 +76,10 @@ def delete_star(star_id: int, db: Session = Depends(get_db)):
     return db_star
 
 
-
-
-
-
-
-
-
-
-
+#--------------------------------------------------------------------
+# Partie 2 API Rest
+# Fonction update director, add actor, update actors
+#--------------------------------------------------------------------
 @app.put("/movies/director/", response_model=schemas.MovieDetail)
 def update_movie_director(mid: int, sid: int, db: Session = Depends(get_db)):
     db_movie = crud.update_movie_director(db=db, movie_id=mid, director_id=sid)
@@ -88,7 +89,55 @@ def update_movie_director(mid: int, sid: int, db: Session = Depends(get_db)):
 
 @app.post("/movies/actor", response_model=schemas.MovieDetail)
 def add_movie_actor(mid:int, sid:int, db: Session = Depends(get_db)):
-    return crud.add_movie_actor(db=db,movie_id=mid,star_id=sid)
+    db_movie = crud.add_movie_actor(db=db,movie_id=mid,star_id=sid)
+    if db_movie is None:
+    	raise HTTPException(status_code=404, detail="Something is not found")
+    if db_movie == 0:
+    	raise HTTPException(status_code=404, detail="Star already present")
+    return db_movie
+
+
+#--------------------------------------------------------------------
+# Partie 3 API Rest
+# Stats nb films, année 1er film et année dernier film
+#--------------------------------------------------------------------
+@app.get("/stars/stats_movie_by_actor")
+def read_stats_movie_by_actor(minc: Optional[int] = 10, db: Session = Depends(get_db)):
+    return crud.get_stats_movie_by_actor(db=db, min_count=minc)
+
+@app.get("/stars/get_first_movie")
+def read_stars_get_first_movie(minc: Optional[int] = 10, db: Session = Depends(get_db)):
+    return crud.get_stars_first_movie(db=db, min_count=minc)
+
+@app.get("/stars/get_last_movie")
+def read_stars_get_last_movie(minc: Optional[int] = 10, db: Session = Depends(get_db)):
+    return crud.get_stars_last_movie(db=db, min_count=minc)
+
+
+#--------------------------------------------------------------------
+# Partie 1 Notebook
+# Fonction pour les 3 dataframes
+#--------------------------------------------------------------------
+@app.get("/movies/by_title_part", response_model=List[schemas.Movie])
+def read_movies_by_title_part(t: str, db: Session = Depends(get_db)):
+    return crud.get_movies_by_title_part(db=db, title=t)
+
+@app.get("/stars/by_birthyear/{year}", response_model=List[schemas.Star])
+def read_stars_by_birthyear(year: int, db: Session = Depends(get_db)):
+    # read items from database
+    stars = crud.get_stars_by_birthyear(db=db, year=year)
+    return stars
+
+@app.get("/stars/stats_movie_by_stars")
+def read_stats_movie_by_stars(minc: Optional[int] = 10, db: Session = Depends(get_db)):
+    return crud.get_stats_movie_by_stars(db=db, min_count=minc)
+
+
+
+
+
+
+
 
 @app.put("/movies/actors/", response_model=schemas.MovieDetail)
 def update_movie_actors(mid: int, sids: List[int], db: Session = Depends(get_db)):
@@ -118,9 +167,7 @@ def read_movie(movie_id: int, db: Session = Depends(get_db)):
 def read_movies_by_title(t: str, db: Session = Depends(get_db)):
     return crud.get_movies_by_title(db=db, title=t)
             
-@app.get("/movies/by_title_part", response_model=List[schemas.Movie])
-def read_movies_by_title_part(t: str, db: Session = Depends(get_db)):
-    return crud.get_movies_by_title_part(db=db, title=t)
+
     # Exeemple de Fake returns
     # return [schemas.Movie(title='Mulan', year=1998, id=1)]
     # return [{'title':'Mulan','year':1998, 'id':1}]
@@ -197,11 +244,7 @@ def read_stars_by_endname(n: str, db: Session = Depends(get_db)):
     stars = crud.get_stars_by_endname(db=db, name=n)
     return stars
 
-@app.get("/stars/by_birthyear/{year}", response_model=List[schemas.Star])
-def read_stars_by_birthyear(year: int, db: Session = Depends(get_db)):
-    # read items from database
-    stars = crud.get_stars_by_birthyear(db=db, year=year)
-    return stars
+
 
 @app.get("/stars/count")
 def read_stars_count(db: Session = Depends(get_db)):

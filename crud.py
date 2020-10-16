@@ -12,7 +12,10 @@ import models, schemas
 
 
 #Partie a rendre
-#Movie
+#--------------------------------------------------------------------
+# Partie 1 API Rest
+# Fonction create, update et delete pour Movie
+#--------------------------------------------------------------------
 def create_movie(db: Session, movie: schemas.MovieCreate):
     # convert schema object from rest api to db model object
     db_movie = models.Movie(title=movie.title, year=movie.year, duration=movie.duration)
@@ -46,8 +49,10 @@ def delete_movie(db: Session, movie_id: int):
      return db_movie
 
 
-#Star
-
+#--------------------------------------------------------------------
+# Partie 1 API Rest
+# Fonction create, update et delete pour Star
+#--------------------------------------------------------------------
 def create_star(db: Session, star: schemas.StarCreate):
     # convert schema object from rest api to db model object
     db_star = models.Star(name=star.name, birthdate=star.birthdate)
@@ -79,8 +84,92 @@ def delete_star(db: Session, star_id: int):
      # return deleted object or None if not found
      return db_star
 
+#--------------------------------------------------------------------
+# Partie 2 API Rest
+# Fonction update director, add actor, update actors
+#--------------------------------------------------------------------
+def update_movie_director(db: Session, movie_id: int, director_id: int):
+    db_movie = get_movie(db=db, movie_id=movie_id)
+    db_star =  get_star(db=db, star_id=director_id)
+    if db_movie is None or db_star is None:
+        return None
+    # update object association
+    db_movie.director = db_star
+    # commit transaction : update SQL
+    db.commit()
+    # return updated object
+    return db_movie
+
+def add_movie_actor(db:Session, movie_id:int, star_id:int):
+    db_movie = get_movie(db=db, movie_id=movie_id)
+    db_star =  get_star(db=db, star_id=star_id)
+    if db_movie is None or db_star is None:
+    	return None
+    if db_star in db_movie.actors:
+    	return 0
+    # update data from db
+    db_movie.actors.append(db_star)
+    # validate update in db
+    db.commit()
+    return db_movie
+
+#
+#def update_movie_actor(db:Session, movie_id:int, star_ids: List[int]):
+#	db_movie = get_movie(db=db, movie_id=movie_id)
+#	if db_movie is None:
+#		return None
 
 
+
+#--------------------------------------------------------------------
+# Partie 3 API Rest
+# Stats nb films, année 1er film et année dernier film
+#--------------------------------------------------------------------
+def get_stats_movie_by_actor(db: Session, min_count: int):
+    return db.query(models.Star, func.count(models.Movie.id).label("movie_count"))  \
+        .join(models.Movie.actors)        \
+        .group_by(models.Star)  \
+        .having(func.count(models.Movie.id) >= min_count) \
+        .order_by(desc("movie_count")) \
+        .all()
+
+def get_stars_first_movie(db: Session, min_count: int):
+    return db.query(models.Star, func.min(models.Movie.year))  \
+        .join(models.Movie.actors)        \
+        .group_by(models.Star)  \
+        .having(func.count(models.Movie.id) >= min_count) \
+        .all()
+
+def get_stars_last_movie(db: Session, min_count: int):
+    return db.query(models.Star, func.max(models.Movie.year))  \
+        .join(models.Movie.actors)        \
+        .group_by(models.Star)  \
+        .having(func.count(models.Movie.id) >= min_count) \
+        .all()
+
+
+
+#--------------------------------------------------------------------
+# Partie 1 Notebook
+# Fonction pour les 3 dataframes
+#--------------------------------------------------------------------
+def get_movies_by_title_part(db: Session, title: str):
+    return _get_movies_by_predicate(models.Movie.title.like(f'%{title}%'), db=db)   \
+            .order_by(models.Movie.title, models.Movie.year)                       \
+            .all()
+
+def get_stars_by_birthyear(db: Session, year: int):
+    return _get_stars_by_predicate(extract('year', models.Star.birthdate) == year, db=db) \
+            .order_by(models.Star.name)  \
+            .all()
+
+def get_stats_movie_by_stars(db: Session, min_count: int):
+    return db.query(models.Star, func.count(models.Movie.id).label("movie_count"), func.min(models.Movie.year), func.max(models.Movie.year))  \
+        .join(models.Movie.actors)        \
+        .group_by(models.Star)  \
+        .having(func.count(models.Movie.id) >= min_count) \
+        .order_by(desc("movie_count")) \
+        .all()
 
 
 
@@ -110,10 +199,7 @@ def get_movies_by_title(db: Session, title: str):
             .order_by(desc(models.Movie.year))                      \
             .all()
             
-def get_movies_by_title_part(db: Session, title: str):
-    return _get_movies_by_predicate(models.Movie.title.like(f'%{title}%'), db=db)   \
-            .order_by(models.Movie.title, models.Movie.year)                       \
-            .all()
+
 
 def get_movies_by_year(db: Session, year: int):
     return _get_movies_by_predicate(models.Movie.year == year, db=db)    \
@@ -168,27 +254,9 @@ def get_movies_count_by_year(db: Session):
 
 # CRUD Association
 
-def update_movie_director(db: Session, movie_id: int, director_id: int):
-    db_movie = get_movie(db=db, movie_id=movie_id)
-    db_star =  get_star(db=db, star_id=director_id)
-    if db_movie is None or db_star is None:
-        return None
-    # update object association
-    db_movie.director = db_star
-    # commit transaction : update SQL
-    db.commit()
-    # return updated object
-    return db_movie
 
-def add_movie_actor(db:Session, movie_id:int, star_id:int):
-    db_movie = get_movie(db=db, movie_id=movie_id)
-    db_star =  get_star(db=db, star_id=star_id)
-    if db_movie is not None and db_star is not None:
-        # update data from db
-        db_movie.actors.append(db_star)
-        # validate update in db
-        db.commit()
-    return db_movie
+
+
 
 ######
 
@@ -225,10 +293,7 @@ def get_stars_by_endname(db: Session, name: str):
             .order_by(models.Star.birthdate)  \
             .all()
 
-def get_stars_by_birthyear(db: Session, year: int):
-    return _get_stars_by_predicate(extract('year', models.Star.birthdate) == year, db=db) \
-            .order_by(models.Star.name)  \
-            .all()
+
 
 def get_stars_count(db: Session):
     return db.query(models.Star).count()
